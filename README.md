@@ -30,14 +30,6 @@ This script utilizes a **Hybrid Swarm Architecture** designed to push multi-GPU 
 * At least one NVIDIA GPU (CUDA enabled). 
 * [ExifTool](https://exiftool.org/) installed or downloaded.
 
-**2. Install Dependencies**
-To ensure the models utilize your CUDA cores (and not your CPU), install the specific PyTorch and ONNX versions:
-```bash
-pip uninstall -y torch torchvision torchaudio onnxruntime onnxruntime-gpu
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip install onnxruntime-gpu insightface transformers timm==0.9.12 einops pillow pillow-heif opencv-python
-
-
 
 
 Here is an example of the terminal output which refreshes every ~10 seconds
@@ -66,4 +58,60 @@ Here is an example of the terminal output which refreshes every ~10 seconds
          Latest : F:\2020\Photos\asasaasasa.heic
 -------------------------------------------------------------------------------------------------------------------
 
+
+
+**2. Install Dependencies**
+To ensure the models utilize your CUDA cores (and not your CPU), install the specific PyTorch and ONNX versions:
+```bash
+pip uninstall -y torch torchvision torchaudio onnxruntime onnxruntime-gpu
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install onnxruntime-gpu insightface transformers timm==0.9.12 einops pillow pillow-heif opencv-python
+
+(Note: timm must be pinned to 0.9.12 to maintain compatibility with Florence-2).
+
+Usage & Configuration
+
+Open the Python script and configure the paths at the very top:
+
+TARGET_DIRECTORY = r"C:\Path\To\Your\Photos"  
+EXIFTOOL_PATH = r"C:\Path\To\exiftool.exe"
+
+Hardware Tuning Guide (The Swarm Configurator)
+
+Because AI models consume VRAM, you must tune the worker counts based on your
+specific hardware. InsightFace uses ~1.5GB to 3GB VRAM per worker. Florence-2
+uses ~2GB to 2.5GB VRAM per worker.
+
+Scenario A: High-End Dual GPU (e.g., 24GB GPU 0 + 10GB GPU 1) The setup for
+maximum throughput.
+
+NUM_FACE_WORKERS_GPU0  = 0   
+NUM_SCENE_WORKERS_GPU0 = 6   # GPU 0 is entirely dedicated to the hardest task (Scenes)
+
+NUM_FACE_WORKERS_GPU1  = 2   # GPU 1 easily outpaces the Scene workers
+NUM_SCENE_WORKERS_GPU1 = 2   # GPU 1 uses leftover VRAM to assist with Scenes
+
+Scenario B: Single High-End GPU (e.g., 24GB VRAM)
+
+NUM_FACE_WORKERS_GPU0  = 2   
+NUM_SCENE_WORKERS_GPU0 = 6   
+
+NUM_FACE_WORKERS_GPU1  = 0   # Disabled
+NUM_SCENE_WORKERS_GPU1 = 0   # Disabled
+
+Scenario C: Single Mid-Tier GPU (e.g., 8GB VRAM)
+
+NUM_FACE_WORKERS_GPU0  = 1   
+NUM_SCENE_WORKERS_GPU0 = 2   
+
+NUM_FACE_WORKERS_GPU1  = 0   
+NUM_SCENE_WORKERS_GPU1 = 0   
+
+Running the Script
+
+python ai_photo_ingest.py
+
+Watch the built-in dashboard. If your Pending Scenes queue hits 0 and the
+Bottleneck indicator warns you, add another Face worker. If your Pending Scenes
+queue climbs to maximum, your hardware is saturated.
 
